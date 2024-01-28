@@ -1,14 +1,33 @@
 <script lang="ts">
+	import ollama from 'ollama'
+
+	let content = $state('Why is the sky blue?')
 	let loading = $state(false)
-	let data = $state({})
+	let answer = $state('')
+
+	$effect(() => {
+		const message = { role: 'user', content }
+		ollama
+			.chat({ model: 'llama2', messages: [message] })
+			.then(async (res) => {
+				for await (const part of res) {
+					answer =
+						answer +
+						String(part.message.content)
+							.replace(/\\n/g, '')
+							.replace(/"/g, '')
+							.replace(/\\u0001/g, '')
+							.replace(/\\u0002/g, '')
+				}
+			})
+			.finally(() => {
+				loading = false
+			})
+	})
 
 	const handleSubmit = async (e) => {
 		const formData = new FormData(e.target)
-		const content = formData.get('content')
-		loading = true
-		const res = await fetch(`/api/ollama?content=${content}`)
-		data = await res.json()
-		loading = false
+		content = String(formData.get('content'))
 	}
 </script>
 
@@ -17,7 +36,7 @@
 		Ask the AI:
 		<textarea name="content" />
 	</label>
-	<button>
+	<button type="submit" disabled={loading}>
 		{#if loading}
 			Loading...
 		{:else}
@@ -26,9 +45,11 @@
 	</button>
 </form>
 
-{#if data}
-	<p>{data?.message}</p>
-{/if}
+{#await answer}
+	<p>wait</p>
+{:then data}
+	<p>{data}</p>
+{/await}
 
 <style>
 </style>

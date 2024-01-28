@@ -1,21 +1,16 @@
 import { json } from '@sveltejs/kit'
 import ollama from 'ollama'
 
-async function newModel() {
-  const modelfile = `
-    FROM llama2
-    SYSTEM "You are an expert Fullstack Developer that is helping a junior developer with Svelte, SvelteKit, TypeScript and JavaScript problems."
-  `
-  return await ollama.create({ model: 'coder-assist', modelfile: modelfile })
-}
-
 export async function GET({ url }) {
+  let out = ''
   const content = url.searchParams.get('content') || 'Hello'
-  const model = newModel()
-  const res = await ollama.chat({
-    model,
-    messages: [{ role: 'user', content, streaming: true }],
-  })
+  const message = { role: 'user', content }
+  const res = await ollama.chat({ model: 'llama2', messages: [message], stream: true })
+  for await (const part of res) {
+    out = out + JSON.stringify(part.message.content)
+  }
+
+  const regex = out.replace(/\\n/g, '').replace(/"/g, '').replace(/\\u0001/g, '').replace(/\\u0002/g, '')
   
-  return json({ message: res.message.content })
+  return json({ message: regex })
 }
